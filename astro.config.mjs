@@ -6,7 +6,7 @@ export default defineConfig({
   integrations: [tailwind()],
   output: 'static',  
   site: 'https://thomas.github.io',  
-  base: '/lhn-standings',  
+  base: '/LHN',  
   adapter: node({
     mode: 'standalone',
     ssr: true
