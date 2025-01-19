@@ -1,0 +1,504 @@
+---
+/**
+ * @typedef {Object} Participant
+ * @property {string} name - The name of the participant
+ * @property {number} position - The position of the participant
+ */
+
+/**
+ * @typedef {Object} Event
+ * @property {string} name - The name of the event
+ * @property {string} date - The date of the event
+ * @property {string} format - The format of the event
+ * @property {Participant[]} participants - List of participants
+ */
+
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import Toast from './Toast.astro';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const eventsDir = path.join(__dirname, '../../data/events');
+
+// Ensure events directory exists
+try {
+  await fs.mkdir(eventsDir, { recursive: true });
+} catch (error) {
+  console.error('Error creating events directory:', error);
+}
+---
+
+<div class="max-w-3xl mx-auto p-6 w-4/5">
+  <form id="eventForm" class="space-y-6">
+    <div>
+      <label for="eventName" class="block text-sm font-medium text-gray-700">
+        Event Name
+      </label>
+      <input
+        type="text"
+        id="eventName"
+        name="eventName"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+        required
+      />
+    </div>
+
+    <div>
+      <label for="eventFormat" class="block text-sm font-medium text-gray-700">
+        Event Format
+      </label>
+      <input
+        type="text"
+        id="eventFormat"
+        name="eventFormat"
+        placeholder="Format and Age"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+      />
+    </div>
+
+    <div>
+      <label for="eventDate" class="block text-sm font-medium text-gray-700">
+        Event Date
+      </label>
+      <input
+        type="date"
+        id="eventDate"
+        name="eventDate"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+        required
+      />
+    </div>
+
+    <div class="space-y-4">
+      <div class="relative">
+        <input
+          type="text"
+          id="participantName"
+          placeholder="Add participant"
+          class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+        <div id="participantSuggestions" class="absolute z-10 w-full bg-white border rounded-md shadow-lg mt-1 hidden">
+          <!-- Suggestions will be populated here -->
+        </div>
+      </div>
+      <button
+        type="button"
+        id="addParticipant"
+        class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+      >
+        Add Participant
+      </button>
+    </div>
+
+    <div id="participantsList" class="mt-4 space-y-2">
+      <!-- Current participants will be listed here -->
+    </div>
+
+    <div>
+      <label for="password" class="block text-sm font-medium text-gray-700">
+        Password
+      </label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+        required
+      />
+    </div>
+
+    <button
+      type="submit"
+      class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+    >
+      Create Event
+    </button>
+  </form>
+
+  <h2 class="text-xl font-semibold mt-8 mb-4">Created Events</h2>
+  <div id="eventsList" class="grid grid-cols-2 gap-4">
+    <!-- Events will be listed here -->
+  </div>
+</div>
+
+<Toast />
+
+<script>
+  import CryptoJS from 'crypto-js';
+
+  /** @type {Event[]} */
+  let events = [];
+  /** @type {Participant[]} */
+  let currentParticipants = [];
+  let editingEventIndex = -1;
+  let selectedSuggestionIndex = -1;
+
+  // DOM Elements
+  const eventForm = document.getElementById("eventForm");
+  const participantInput = document.getElementById("participantName");
+  const addParticipantBtn = document.getElementById("addParticipant");
+  const participantsList = document.getElementById("participantsList");
+  const eventsList = document.getElementById("eventsList");
+  const participantSuggestions = document.getElementById("participantSuggestions");
+  const submitButton = eventForm.querySelector('button[type="submit"]');
+
+  // Load events on page load
+  async function loadEvents() {
+    try {
+      const response = await fetch('/api/events');
+      if (!response.ok) throw new Error('Failed to load events');
+      events = await response.json();
+      updateEventsList();
+    } catch (error) {
+      console.error('Error loading events:', error);
+    }
+  }
+
+  // Call loadEvents when the page loads
+  loadEvents();
+
+  // Get unique participants from all events
+  function getAllParticipants() {
+    const participantsSet = new Set();
+    events.forEach(event => {
+      event.participants.forEach(participant => {
+        participantsSet.add(participant.name);
+      });
+    });
+    return Array.from(participantsSet);
+  }
+
+  // Search participants
+  function searchParticipants(query) {
+    if (!query || query.length < 3) {
+      participantSuggestions.classList.add('hidden');
+      selectedSuggestionIndex = -1;
+      return;
+    }
+
+    const allParticipants = getAllParticipants();
+    const matches = allParticipants.filter(name => 
+      name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    if (matches.length > 0) {
+      participantSuggestions.innerHTML = matches
+        .map((name, index) => `
+          <div
+            class="p-2 hover:bg-gray-100 cursor-pointer suggestion ${index === selectedSuggestionIndex ? 'bg-blue-100' : ''}"
+            data-index="${index}"
+            data-name="${name}"
+          >
+            ${name}
+          </div>
+        `)
+        .join('');
+      participantSuggestions.classList.remove('hidden');
+    } else {
+      participantSuggestions.classList.add('hidden');
+      selectedSuggestionIndex = -1;
+    }
+  }
+
+  // Select participant from suggestions
+  function selectParticipant(name) {
+    participantInput.value = name;
+    participantSuggestions.classList.add('hidden');
+    selectedSuggestionIndex = -1;
+    participantInput.focus();
+  }
+
+  // Handle keyboard navigation
+  participantInput.addEventListener('keydown', (e) => {
+    const suggestions = participantSuggestions.querySelectorAll('.suggestion');
+    const maxIndex = suggestions.length - 1;
+
+    if (suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'Tab':
+        e.preventDefault();
+        if (selectedSuggestionIndex === -1) {
+          selectedSuggestionIndex = 0;
+        } else {
+          selectedSuggestionIndex = (selectedSuggestionIndex + 1) % suggestions.length;
+        }
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex !== -1) {
+          const selectedName = suggestions[selectedSuggestionIndex].dataset.name;
+          selectParticipant(selectedName);
+          if (e.shiftKey) {
+            addParticipant();
+          }
+        }
+        break;
+      case 'Escape':
+        participantSuggestions.classList.add('hidden');
+        selectedSuggestionIndex = -1;
+        break;
+    }
+
+    // Update visual selection
+    suggestions.forEach((suggestion, index) => {
+      if (index === selectedSuggestionIndex) {
+        suggestion.classList.add('bg-blue-100');
+      } else {
+        suggestion.classList.remove('bg-blue-100');
+      }
+    });
+  });
+
+  // Add click handlers for suggestions
+  participantSuggestions.addEventListener('click', (e) => {
+    const suggestion = e.target.closest('.suggestion');
+    if (suggestion) {
+      selectParticipant(suggestion.dataset.name);
+    }
+  });
+
+  // Add participant input event listener
+  participantInput.addEventListener('input', (e) => {
+    selectedSuggestionIndex = -1;
+    searchParticipants(e.target.value);
+  });
+
+  // Hide suggestions when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!participantInput.contains(e.target) && !participantSuggestions.contains(e.target)) {
+      participantSuggestions.classList.add('hidden');
+      selectedSuggestionIndex = -1;
+    }
+  });
+
+  // Add participant
+  function addParticipant(e) {
+    // Prevent form submission if triggered by Enter key
+    if (e && e.type === 'submit') {
+      e.preventDefault();
+    }
+
+    const name = participantInput.value.trim();
+    if (!name) return;
+
+    currentParticipants.push({
+      name,
+      position: currentParticipants.length + 1,
+    });
+    updateParticipantsList();
+    participantInput.value = "";
+    // Keep focus on the input field
+    participantInput.focus();
+  }
+
+  // Add participant on button click
+  addParticipantBtn.addEventListener("click", addParticipant);
+
+  // Add participant on Enter key in input field
+  participantInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      addParticipant();
+      e.preventDefault(); // Prevent form submission
+    }
+  });
+
+  // Remove participant
+  function removeParticipant(index) {
+    currentParticipants.splice(index, 1);
+    // Update positions after removal
+    currentParticipants.forEach((participant, idx) => {
+      participant.position = idx + 1;
+    });
+    updateParticipantsList();
+  }
+
+  // Update participants list
+  function updateParticipantsList() {
+    participantsList.innerHTML = currentParticipants
+      .map(
+        (participant, index) => `
+      <li class="flex justify-between items-center bg-gray-50 p-2 rounded">
+        <div>
+          <span class="font-medium">#${participant.position}</span>
+          <span class="ml-2">${participant.name}</span>
+        </div>
+        <button
+          type="button"
+          onclick="removeParticipant(${index})"
+          class="text-red-500 hover:text-red-700"
+        >
+          Remove
+        </button>
+      </li>
+    `
+      )
+      .join("");
+  }
+
+  // Handle form submission
+  eventForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // Collect form data
+    const formData = new FormData(eventForm);
+    const password = formData.get('password');
+
+    // Hash the password
+    const passwordHash = CryptoJS.SHA256(password).toString();
+
+    // Remove password from form data before sending
+    formData.delete('password');
+
+    try {
+      const method = editingEventIndex === -1 ? 'POST' : 'PUT';
+      const eventId = editingEventIndex === -1 
+        ? Date.now().toString() 
+        : events[editingEventIndex].id;
+
+      const response = await fetch('/api/events', {
+        method,
+        body: JSON.stringify({
+          eventData: {
+            id: eventId,
+            name: formData.get("eventName"),
+            format: formData.get("eventFormat"),
+            date: formData.get("eventDate"),
+            participants: [...currentParticipants],
+          },
+          passwordHash: passwordHash
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Differentiate between create and edit messages
+        const toastMessage = editingEventIndex === -1 
+          ? 'Event created successfully!' 
+          : 'Event updated successfully!';
+        
+        window.showToast(toastMessage, 'success');
+        
+        // Reset form
+        eventForm.reset();
+        currentParticipants = [];
+        updateParticipantsList();
+        
+        if (editingEventIndex === -1) {
+          events.push(result.event);
+        } else {
+          events[editingEventIndex] = result.event;
+        }
+
+        // Reset editing state
+        editingEventIndex = -1;
+        submitButton.textContent = "Create Event";
+
+        updateEventsList();
+      } else {
+        window.showToast(result.message, 'error');
+      }
+    } catch (error) {
+      console.error('Error saving event:', error);
+      window.showToast('Failed to save event. Please try again.', 'error');
+    }
+  });
+
+  // Edit event
+  function editEvent(index) {
+    const event = events[index];
+    editingEventIndex = index;
+
+    // Fill form with event data
+    const eventNameInput = document.getElementById("eventName");
+    const eventFormatInput = document.getElementById("eventFormat");
+    const eventDateInput = document.getElementById("eventDate");
+
+    eventNameInput.value = event.name;
+    eventFormatInput.value = event.format || "";
+    eventDateInput.value = event.date;
+
+    // Set participants
+    currentParticipants = [...event.participants];
+    updateParticipantsList();
+
+    // Update submit button text
+    submitButton.textContent = "Update Event";
+
+    // Scroll to form
+    eventForm.scrollIntoView({ behavior: "smooth" });
+  }
+
+  // Remove event
+  async function removeEvent(index) {
+    const event = events[index];
+    if (confirm(`Are you sure you want to remove the event "${event.name}"?\n\nThis action cannot be undone and will permanently delete this event and all its participant data.`)) {
+      try {
+        const response = await fetch('/api/events', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: event.id }),
+        });
+
+        if (!response.ok) throw new Error('Failed to delete event');
+
+        events.splice(index, 1);
+        if (editingEventIndex === index) {
+          // Reset form if removing currently edited event
+          eventForm.reset();
+          currentParticipants = [];
+          updateParticipantsList();
+          editingEventIndex = -1;
+          submitButton.textContent = "Create Event";
+        }
+        updateEventsList();
+      } catch (error) {
+        console.error('Error deleting event:', error);
+        window.showToast('Failed to delete event. Please try again.', 'error');
+      }
+    }
+  }
+
+  // Update events list
+  function updateEventsList() {
+    eventsList.innerHTML = events.map((event, index) => `
+      <div class="bg-white shadow rounded-lg p-4">
+        <div class="flex justify-between items-start">
+          <div class="flex-1 min-w-0">
+            <h3 class="text-lg font-semibold truncate">${event.name}</h3>
+            <p class="text-gray-600 truncate">${event.format}</p>
+            <p class="text-gray-600">${event.date}</p>
+            <p class="text-gray-600">${event.participants.length} participants</p>
+          </div>
+          <div class="flex flex-col space-y-2 ml-4">
+            <button
+              onclick="editEvent(${index})"
+              class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm whitespace-nowrap"
+            >
+              Edit
+            </button>
+            <button
+              onclick="removeEvent(${index})"
+              class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm whitespace-nowrap"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // Make functions available globally
+  window.removeParticipant = removeParticipant;
+  window.editEvent = editEvent;
+  window.removeEvent = removeEvent;
+</script>

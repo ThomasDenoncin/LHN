@@ -1,0 +1,149 @@
+---
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const eventsDir = path.join(__dirname, '../../data/events');
+
+// Function to calculate points based on position and participant count
+function calculatePoints(position, totalParticipants) {
+  if (totalParticipants <= 8) {
+    switch (position) {
+      case 1: return 5;
+      case 2: return 3;
+      case 3: return 2;
+      case 4: return 1;
+      default: return 0;
+    }
+  } else {
+    switch (position) {
+      case 1: return 7;
+      case 2: return 5;
+      case 3:
+      case 4: return 3;
+      case 5:
+      case 6:
+      case 7:
+      case 8: return 1;
+      default: return 0;
+    }
+  }
+}
+
+// Load and process events data
+let events = [];
+try {
+  await fs.mkdir(eventsDir, { recursive: true });
+  const files = await fs.readdir(eventsDir);
+  events = await Promise.all(
+    files
+      .filter(file => file.endsWith('.json'))
+      .map(async file => {
+        const filePath = path.join(eventsDir, file);
+        const content = await fs.readFile(filePath, 'utf-8');
+        return JSON.parse(content);
+      })
+  );
+
+  // Filter for LHN 25 events only
+  events = events.filter(event => event.name.includes('LHN 25'));
+} catch (error) {
+  console.error('Error loading events:', error);
+}
+
+// Get unique participants and calculate their points
+const participantsMap = new Map();
+
+// First, collect all unique participants
+events.forEach(event => {
+  event.participants.forEach(participant => {
+    if (!participantsMap.has(participant.name)) {
+      participantsMap.set(participant.name, {
+        name: participant.name,
+        eventPoints: new Map(),
+        totalPoints: 0
+      });
+    }
+  });
+});
+
+// Calculate points for each participant in each event
+events.forEach(event => {
+  const totalParticipants = event.participants.length;
+  event.participants.forEach(participant => {
+    const points = calculatePoints(participant.position, totalParticipants);
+    const participantData = participantsMap.get(participant.name);
+    if (participantData) {
+      participantData.eventPoints.set(event.id, points);
+      participantData.totalPoints += points;
+    }
+  });
+});
+
+// Convert to array and sort by total points
+const standings = Array.from(participantsMap.values())
+  .sort((a, b) => b.totalPoints - a.totalPoints);
+
+// Sort events chronologically
+events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+// Function to format event name (strip "LHN 25 - " prefix)
+function formatEventName(name: string): string {
+  return name.replace('LHN 25 - ', '');
+}
+---
+
+<div class="w-full overflow-x-auto">
+  {events.length === 0 ? (
+    <p class="text-gray-500 text-center py-4">No events found. Create some events to see the standings.</p>
+  ) : (
+    <div class="relative w-full overflow-x-auto">
+      <table class="bg-white w-full shadow-md rounded-lg">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-3 py-2 border text-left text-sm font-semibold text-gray-600 sticky left-0 z-20 bg-gray-50 whitespace-nowrap min-w-[60px]">
+              Rank
+            </th>
+            <th class="px-3 py-2 border text-left text-sm font-semibold text-gray-600 sticky z-20 bg-gray-50 whitespace-nowrap min-w-[150px]" style="left: 60px;">
+              Participant
+            </th>
+            {events.map(event => (
+              <th class="px-3 py-2 border text-center text-sm font-semibold text-gray-600 min-w-[80px] max-w-[100px]">
+                <div>
+                  <div class="font-bold truncate">{formatEventName(event.name)}</div>
+                  <div class="text-gray-500 text-xs">{event.format}</div>
+                  <div class="text-gray-500 text-xs">{new Date(event.date).toLocaleDateString()}</div>
+                </div>
+              </th>
+            ))}
+            <th class="px-3 py-2 border text-right text-sm font-semibold text-gray-600 sticky right-0 z-20 bg-gray-50 whitespace-nowrap min-w-[80px]">
+              Total
+            </th>
+          </tr> 
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          {standings.map((participant, index) => (
+            <tr class={`
+              ${index % 2 === 1 ? 'bg-gray-100' : ''}
+              hover:bg-gray-50
+            `}>
+              <td class={`px-4 py-2 sticky border z-20 left-0 ${index % 2 === 1 ? 'bg-gray-100' : 'bg-white'}`}>{index + 1}</td>
+              <td class={`px-4 py-2 sticky border z-20 ${index % 2 === 1 ? 'bg-gray-100' : 'bg-white'}`} style="left: 60px;">{participant.name}</td>
+              {events.map(event => {
+                const points = participant.eventPoints.get(event.id) || 0;
+                return (
+                  <td class="px-4 border py-2 text-center">
+                    {points > 0 ? points : '-'}
+                  </td>
+                );
+              })}
+              <td class={`px-4 py-2 text-right sticky border z-20 right-0 ${index % 2 === 1 ? 'bg-gray-100' : 'bg-white'}`}>{participant.totalPoints}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</div>
