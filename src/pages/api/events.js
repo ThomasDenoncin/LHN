@@ -1,7 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import CryptoJS from 'crypto-js';
 
 // Get the directory path relative to the current file
 const __filename = fileURLToPath(import.meta.url);
@@ -39,19 +38,7 @@ export async function GET() {
 
 export async function POST({ request }) {
   try {
-    const { eventData, passwordHash } = await request.json();
-
-    // Validate password hash
-    const correctHash = CryptoJS.SHA256('W@rdp4ss').toString();
-    if (passwordHash !== correctHash) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        message: 'Incorrect password' 
-      }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    const { eventData } = await request.json();
 
     // Prepare event data
     const event = {
@@ -95,19 +82,7 @@ export async function POST({ request }) {
 
 export async function PUT({ request }) {
   try {
-    const { eventData, passwordHash } = await request.json();
-
-    // Validate password hash
-    const correctHash = CryptoJS.SHA256('W@rdp4ss').toString();
-    if (passwordHash !== correctHash) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        message: 'Incorrect password' 
-      }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    const { eventData } = await request.json();
 
     // Ensure events directory exists
     await fs.mkdir(eventsDir, { recursive: true });
