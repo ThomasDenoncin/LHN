@@ -4,7 +4,9 @@ import node from '@astrojs/node';
 
 export default defineConfig({
   integrations: [tailwind()],
-  output: 'server',
+  output: 'static',  
+  site: 'https://thomas.github.io',  
+  base: '/lhn-standings',  
   adapter: node({
     mode: 'standalone',
     ssr: true
