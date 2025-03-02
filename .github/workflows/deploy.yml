@@ -17,7 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout your repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          # Optional: Fetch all history for all branches and tags
+          fetch-depth: 0
       - name: Install, build, and upload your site
         uses: withastro/action@v1
         # with:
