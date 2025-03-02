@@ -3,5 +3,62 @@
   "name": "LHN 25 - Ronde 2",
   "format": "Pulp Golden",
   "date": "2025-02-28",
-  "participants": []
+  "participants": [
+    {
+      "name": "Lothior",
+      "position": 1
+    },
+    {
+      "name": "Chloe",
+      "position": 2
+    },
+    {
+      "name": "Neo",
+      "position": 3
+    },
+    {
+      "name": "Thomas",
+      "position": 4
+    },
+    {
+      "name": "Ludo",
+      "position": 5
+    },
+    {
+      "name": "Stevens",
+      "position": 6
+    },
+    {
+      "name": "David",
+      "position": 7
+    },
+    {
+      "name": "Maxime",
+      "position": 8
+    },
+    {
+      "name": "Pacou",
+      "position": 9
+    },
+    {
+      "name": "Kevin",
+      "position": 10
+    },
+    {
+      "name": "Noelyse",
+      "position": 11
+    },
+    {
+      "name": "Jeff",
+      "position": 12
+    },
+    {
+      "name": "Mathieu",
+      "position": 11
+    },
+    {
+      "name": "Michel",
+      "position": 12
+    }
+  ]
 }
