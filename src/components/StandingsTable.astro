@@ -9,15 +9,15 @@ const eventsDir = path.join(__dirname, '../../data/events');
 
 // Function to calculate points based on position and participant count
 function calculatePoints(position, totalParticipants) {
-  if (totalParticipants <= 8) {
-    switch (position) {
-      case 1: return 5;
-      case 2: return 3;
-      case 3: 
-      case 4: return 1;
-      default: return 0;
-    }
-  } else {
+  // if (totalParticipants <= 8) {
+  //   switch (position) {
+  //     case 1: return 5;
+  //     case 2: return 3;
+  //     case 3: 
+  //     case 4: return 1;
+  //     default: return 0;
+  //   }
+  // } else {
     switch (position) {
       case 1: return 7;
       case 2: return 5;
@@ -29,7 +29,7 @@ function calculatePoints(position, totalParticipants) {
       case 8: return 1;
       default: return 0;
     }
-  }
+  // }
 }
 
 // Load and process events data
