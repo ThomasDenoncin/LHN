@@ -1,0 +1,24 @@
+{
+  "id": "1751719330",
+  "name": "LHN 25 - Ronde 6",
+  "format": "Std Silver",
+  "date": "2025-07-04",
+  "participants": [
+    {
+      "name": "Ludo",
+      "position": 1
+    },
+    {
+      "name": "Maxime",
+      "position": 2
+    },
+    {
+      "name": "Lys",
+      "position": 4
+    },
+    {
+      "name": "Napoleon",
+      "position": 6
+    }
+  ]
+}
